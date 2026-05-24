@@ -620,11 +620,29 @@ function deleteTask(id){
 
 function checkStreak(){
   const mg=S.history[todayStr()]||0;
-  if(mg>=S.streakThresh&&S.streak===0)S.streak=1;
+  if(mg>=S.streakThresh){
+    if(S.streak<1)S.streak=1;
+  }
   if(S.streak>S.bestStreak)S.bestStreak=S.streak;
 }
 
-function renderTodos(){
+// ─── TOAST ───────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+// ─── RENDER ALL ──────────────────────────────────────────
+let _initialRenderDone=false;
+function render(){
+  renderStats();renderTodos();renderIdeas();buildHeatmap();buildHbars();renderSettings();
+  // Only set today's date on the very first render, never override user selection after that
+  if(!_initialRenderDone){
+    document.getElementById('act-date').value=todayStr();
+    _initialRenderDone=true;
+  }
+  loadDay();
+}
   const list=document.getElementById('todo-list');
   if(!S.todos.length){list.innerHTML='<div class="empty">No tasks yet — add one below 🥭</div>';return;}
   list.innerHTML='';
@@ -755,7 +773,7 @@ function buildHeatmap(){
     const el=document.createElement('div');
     el.className='hm-cell '+c.cls;
     el.title=c.key+': '+c.mg+' 🥭';
-    el.onclick=()=>{switchTab('activity');document.getElementById('act-date').value=c.key;loadDay();};
+    el.onclick=()=>{document.getElementById('act-date').value=c.key;switchTab('activity');};
     grid.appendChild(el);
   });
 
@@ -887,20 +905,8 @@ function switchTab(name){
   if(name==='settings')renderSettings();
 }
 
-// ─── TOAST ───────────────────────────────────────────────
-function showToast(msg){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000);
-}
-
-// ─── RENDER ALL ──────────────────────────────────────────
-function render(){
-  renderStats();renderTodos();renderIdeas();buildHeatmap();buildHbars();renderSettings();
-  document.getElementById('act-date').value=todayStr();
-  loadDay();
-}
-
 load();
+
 </script>
 </body>
 </html>
