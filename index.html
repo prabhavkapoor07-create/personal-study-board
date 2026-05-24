@@ -643,6 +643,8 @@ function render(){
   }
   loadDay();
 }
+
+function renderTodos(){
   const list=document.getElementById('todo-list');
   if(!S.todos.length){list.innerHTML='<div class="empty">No tasks yet — add one below 🥭</div>';return;}
   list.innerHTML='';
