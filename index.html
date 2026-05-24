@@ -610,7 +610,19 @@ function toggleTask(id){
   save();renderTodos();renderStats();buildHeatmap();
 }
 
-function deleteTask(id){S.todos=S.todos.filter(x=>x.id!==id);save();renderTodos();renderStats();}
+function deleteTask(id){
+  const t=S.todos.find(x=>x.id===id);if(!t)return;
+  if(t.done){
+    const today=todayStr();
+    S.mangoes=Math.max(0,S.mangoes-t.mango);
+    S.history[today]=Math.max(0,(S.history[today]||0)-t.mango);
+    S.totalTasksDone=Math.max(0,S.totalTasksDone-1);
+    if(S.taskLog[today]){const i=S.taskLog[today].findIndex(x=>x.text===t.text);if(i>-1)S.taskLog[today].splice(i,1);}
+    checkStreak();
+  }
+  S.todos=S.todos.filter(x=>x.id!==id);
+  save();renderTodos();renderStats();buildHeatmap();
+}
 
 function checkStreak(){
   const mg=S.history[todayStr()]||0;
