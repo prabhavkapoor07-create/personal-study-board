@@ -5,6 +5,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>📚 Study Board</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBh6wppS8eEBv4g6yhegxC9nfm3AJiokps",
+    authDomain: "tracker-6c3af.firebaseapp.com",
+    projectId: "tracker-6c3af",
+    storageBucket: "tracker-6c3af.firebasestorage.app",
+    messagingSenderId: "812310991727",
+    appId: "1:812310991727:web:43e66c6d32ad135f6cce9a"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  window._fb = { db, setDoc, getDoc, onSnapshot, auth, signOut };
+  window._fbReady = false;
+
+  // Listen for auth state
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // User signed in — set user-specific doc ref
+      const DOC_REF = doc(db, "studyboard", user.uid);
+      window._fb.DOC_REF = DOC_REF;
+      window._fb.user = user;
+      window._fbReady = true;
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('user-info').style.display = 'flex';
+      document.getElementById('user-name').textContent = user.displayName || user.email;
+      const img = document.getElementById('user-avatar');
+      if(user.photoURL){ img.src = user.photoURL; img.style.display = 'block'; }
+      window.dispatchEvent(new Event('fb-ready'));
+    } else {
+      // Not signed in — show login overlay
+      window._fbReady = false;
+      window._fb.user = null;
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('user-info').style.display = 'none';
+    }
+  });
+
+  window.googleSignIn = async function() {
+    try {
+      document.getElementById('signin-btn').textContent = 'Signing in…';
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      console.error(e);
+      document.getElementById('signin-btn').textContent = 'Sign in with Google';
+      alert('Sign-in failed: ' + e.message);
+    }
+  };
+
+  window.googleSignOut = async function() {
+    if(!confirm('Sign out?')) return;
+    await signOut(auth);
+  };
+</script>
 <style>
 :root {
   --bg: #0a0a0f;
@@ -194,6 +256,21 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 ::-webkit-scrollbar-track{background:var(--bg2);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
+/* LOGIN OVERLAY */
+#login-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.97);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+#login-overlay h2{font-size:28px;font-weight:800;background:linear-gradient(135deg,#f5a623,#f7c76d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+#login-overlay p{font-size:14px;color:var(--text2);text-align:center;max-width:300px;line-height:1.6;}
+#signin-btn{display:flex;align-items:center;gap:10px;background:#fff;color:#1a1a1a;border:none;border-radius:8px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.2s;font-family:'Inter',sans-serif;}
+#signin-btn:hover{opacity:0.9;}
+#signin-btn img{width:20px;height:20px;}
+
+/* USER INFO in header */
+#user-info{display:none;align-items:center;gap:8px;}
+#user-avatar{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--mango);display:none;}
+#user-name{font-size:13px;color:var(--text2);font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#signout-btn{font-size:12px;color:var(--text3);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+#signout-btn:hover{color:var(--red);border-color:var(--red);}
+
 /* ANIMATIONS */
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeIn 0.3s ease forwards;}
@@ -201,6 +278,16 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 </head>
 <body>
 <div class="app">
+  <!-- LOGIN OVERLAY -->
+  <div id="login-overlay">
+    <h2>📚 Study Board</h2>
+    <p>Sign in with Google to sync your data across all your devices.</p>
+    <button id="signin-btn" onclick="googleSignIn()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"/>
+      Sign in with Google
+    </button>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <div class="header">
@@ -209,6 +296,11 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="date" id="date-display"></div>
     </div>
     <div class="header-right">
+      <div id="user-info">
+        <img id="user-avatar" src="" alt=""/>
+        <span id="user-name"></span>
+        <button id="signout-btn" onclick="googleSignOut()">Sign out</button>
+      </div>
       <div class="streak-pill" id="streak-pill">🔥 <span id="streak-num">0</span> day streak</div>
       <div class="mango-pill">🥭 <span id="total-mango">0</span> mangoes</div>
     </div>
@@ -326,14 +418,16 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
   <div class="panel" id="panel-settings">
     <div class="section">
-      <div class="sec-row"><div class="sec-title">Data Backup & Sync (Manual)</div></div>
-      <div style="display:flex;gap:10px;">
-        <button class="btn btn-ghost" onclick="exportData()">Export Data</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">Import Data</button>
-        <input type="file" id="import-file" style="display:none" onchange="importData(event)" accept=".json">
+      <div class="sec-row"><div class="sec-title">Cloud Sync</div></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div id="sync-status" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);">
+          <span id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:var(--text3);display:inline-block;"></span>
+          <span id="sync-label">Connecting…</span>
+        </div>
+        <button class="btn btn-ghost" onclick="forceSave()" style="margin-left:auto;">Force Sync Now</button>
       </div>
       <div style="font-size:12px;color:var(--text3);margin-top:10px;line-height:1.4;">
-        Since this app runs locally in your browser, your data isn't automatically shared between your computer and phone. You can use these buttons to manually transfer your data!
+        Your data syncs automatically to Firebase in real time — open this app on any device and it will stay up to date.
       </div>
     </div>
 
@@ -379,15 +473,84 @@ let S = {
 function todayStr(){return new Date().toISOString().slice(0,10);}
 function fmtDate(s){return new Date(s+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
 
-function load(){
+// ─── SYNC STATUS UI ──────────────────────────────────────
+function setSyncStatus(state){
+  const dot=document.getElementById('sync-dot');
+  const label=document.getElementById('sync-label');
+  if(!dot||!label)return;
+  if(state==='live'){dot.style.background='#2ecc71';label.textContent='Synced — changes save automatically';}
+  else if(state==='saving'){dot.style.background='#f1c40f';label.textContent='Saving…';}
+  else if(state==='error'){dot.style.background='#e74c3c';label.textContent='Sync error — check connection';}
+  else{dot.style.background='var(--text3)';label.textContent='Connecting…';}
+}
+
+// ─── FIREBASE SAVE / LOAD ─────────────────────────────────
+let _saveTimer=null;
+async function save(){
+  // Also keep localStorage as offline fallback
+  try{localStorage.setItem('studyboard_v5',JSON.stringify(S));}catch(e){}
+  if(!window._fbReady)return;
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{
+    setSyncStatus('saving');
+    try{
+      await window._fb.setDoc(window._fb.DOC_REF, S);
+      setSyncStatus('live');
+    }catch(e){
+      console.error('Firebase save error',e);
+      setSyncStatus('error');
+    }
+  },600); // debounce 600ms
+}
+
+async function forceSave(){
+  if(!window._fbReady){showToast('Firebase not ready yet.');return;}
+  setSyncStatus('saving');
+  try{
+    await window._fb.setDoc(window._fb.DOC_REF, S);
+    setSyncStatus('live');
+    showToast('Synced! ✅');
+  }catch(e){
+    setSyncStatus('error');
+    showToast('Sync failed.');
+  }
+}
+
+async function load(){
+  // Load from localStorage first for instant render while Firebase connects
   try{
     const d=localStorage.getItem('studyboard_v5');
     if(d) S=Object.assign(S, JSON.parse(d));
-    if(!S.ideas) S.ideas = [];
+    if(!S.ideas) S.ideas=[];
   }catch(e){}
   checkRollover();
+  render();
+
+  // Wait for Firebase auth, then start real-time listener
+  function initFirebase(){
+    const {DOC_REF, onSnapshot} = window._fb;
+    setSyncStatus('connecting');
+    onSnapshot(DOC_REF, (snap)=>{
+      if(snap.exists()){
+        const remote = snap.data();
+        S = Object.assign(S, remote);
+        if(!S.ideas) S.ideas=[];
+        checkRollover();
+        render();
+        setSyncStatus('live');
+      } else {
+        // First time this user — push local state up
+        forceSave();
+      }
+    }, (err)=>{
+      console.error('Firebase listen error',err);
+      setSyncStatus('error');
+    });
+  }
+
+  if(window._fbReady){initFirebase();}
+  else{window.addEventListener('fb-ready',initFirebase,{once:true});}
 }
-function save(){try{localStorage.setItem('studyboard_v5',JSON.stringify(S));}catch(e){}}
 
 function checkRollover(){
   const today=todayStr();
@@ -689,37 +852,7 @@ function resetAll(){
   save();render();showToast('Board reset.');
 }
 
-// ─── EXPORT / IMPORT SYNC ────────────────────────────────
-function exportData() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(S));
-  const downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", "studyboard_backup.json");
-  document.body.appendChild(downloadAnchorNode);
-  downloadAnchorNode.click();
-  downloadAnchorNode.remove();
-}
 
-function importData(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const imported = JSON.parse(e.target.result);
-      if(imported && typeof imported === 'object') {
-        S = Object.assign(S, imported);
-        save();
-        render();
-        showToast('Data imported successfully!');
-      }
-    } catch(err) {
-      showToast('Error importing data.');
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = ''; // Reset input
-}
 
 // ─── TABS ─────────────────────────────────────────────────
 function switchTab(name){
@@ -745,7 +878,7 @@ function render(){
   loadDay();
 }
 
-load();render();
+load();
 </script>
 </body>
 </html>
