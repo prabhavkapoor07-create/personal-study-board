@@ -120,12 +120,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .heatmap-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);}
 .leg{width:11px;height:11px;border-radius:2px;}
 
-/* Fade Wrapper applying gradient to months and grid */
-.heatmap-fade-wrap {
-  width: 100%;
-  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 100%);
-  mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 100%);
-}
 
 .heatmap-months{
   display: grid; 
@@ -470,7 +464,7 @@ let S = {
   showStreak: true, totalTasksDone: 0,
 };
 
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fmtDate(s){return new Date(s+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
 
 // ─── SYNC STATUS UI ──────────────────────────────────────
@@ -721,24 +715,41 @@ function buildHeatmap(){
   const today=new Date();
   today.setHours(0,0,0,0);
 
-  // Start = 364 days ago, snapped to the Sunday of that week
-  const startDate=new Date(today);
-  startDate.setDate(today.getDate()-363);
-  startDate.setDate(startDate.getDate()-startDate.getDay()); // snap to Sunday
+  // Find the Sunday that starts the current week
+  const currentWeekSunday=new Date(today);
+  currentWeekSunday.setDate(today.getDate()-today.getDay());
 
+  // Go back exactly 52 weeks from that Sunday — this is our start
+  const startDate=new Date(currentWeekSunday);
+  startDate.setDate(currentWeekSunday.getDate()-52*7);
+  // startDate is now the Sunday 52 weeks before this week's Sunday
+  // We want to EXCLUDE it and start from the NEXT Sunday (52 complete weeks ending today's week)
+  startDate.setDate(startDate.getDate()+7);
+  // Now startDate = Sunday exactly 51 weeks ago, giving us 52 columns total (this week being the 52nd)
+
+  const localKey=(d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+  // Build cells from startDate to today only
   const cells=[];
-  let d=new Date(startDate);
+  const d=new Date(startDate);
   while(d<=today){
-    const key=d.toISOString().slice(0,10);
+    const key=localKey(d);
     const mg=S.history[key]||0;
     let cls='hm-0';
     if(mg>0&&mg<S.streakThresh*0.25)cls='hm-1';
     else if(mg>=S.streakThresh*0.25&&mg<S.streakThresh*0.5)cls='hm-2';
     else if(mg>=S.streakThresh*0.5&&mg<S.streakThresh)cls='hm-3';
     else if(mg>=S.streakThresh)cls='hm-4';
-    cells.push({date:new Date(d),key,mg,cls});
+    cells.push({key,mg,cls,dow:d.getDay()});
     d.setDate(d.getDate()+1);
   }
+
+  // Total weeks = number of columns needed
+  const totalDays=cells.length;
+  const totalWeeks=Math.ceil((startDate.getDay()+totalDays)/7); // always 52
+
+  grid.style.gridTemplateColumns=`repeat(${totalWeeks},1fr)`;
+  months.style.gridTemplateColumns=`repeat(${totalWeeks},1fr)`;
 
   cells.forEach(c=>{
     const el=document.createElement('div');
@@ -748,23 +759,16 @@ function buildHeatmap(){
     grid.appendChild(el);
   });
 
-  // Month labels aligned to week columns
-  const totalDays=cells.length;
-  const totalWeeks=Math.ceil(totalDays/7);
-
-  // Update grid column count to match actual weeks
-  grid.style.gridTemplateColumns=`repeat(${totalWeeks},1fr)`;
-  months.style.gridTemplateColumns=`repeat(${totalWeeks},1fr)`;
-
+  // Month labels
   let lastMonth=-1;
   for(let w=0;w<totalWeeks;w++){
-    const d=new Date(startDate);
-    d.setDate(startDate.getDate()+w*7);
-    if(d>today) break;
-    const m=d.getMonth();
+    const wd=new Date(startDate);
+    wd.setDate(startDate.getDate()+w*7);
+    if(wd>today) break;
+    const m=wd.getMonth();
     if(m!==lastMonth){
       const s=document.createElement('span');
-      s.textContent=d.toLocaleString('default',{month:'short'});
+      s.textContent=wd.toLocaleString('default',{month:'short'});
       s.style.gridColumnStart=w+1;
       months.appendChild(s);
       lastMonth=m;
@@ -800,7 +804,7 @@ function buildHbars(){
   const today=new Date();
   const vals=Array.from({length:7},(_,i)=>{
     const d=new Date(today);d.setDate(d.getDate()-(6-i));
-    return{key:d.toISOString().slice(0,10),label:i===6?'Today':d.toLocaleDateString('default',{weekday:'short'})};
+    return{key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),label:i===6?'Today':d.toLocaleDateString('default',{weekday:'short'})};
   });
   const maxMg=Math.max(...vals.map(v=>S.history[v.key]||0),S.streakThresh,1);
   vals.forEach(v=>{
