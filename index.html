@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📚 Study Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --bg4: #22222f;
+  --border: #2a2a3a;
+  --mango: #f5a623;
+  --mango2: #e8942a;
+  --mango-dim: #3d2a0a;
+  --mango-glow: rgba(245,166,35,0.15);
+  --green: #2ecc71;
+  --text: #e8e8f0;
+  --text2: #9999bb;
+  --text3: #555577;
+  --red: #e74c3c;
+  --yellow: #f1c40f;
+  --r: 12px;
+  --r2: 8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* NOISE TEXTURE */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
+
+.app{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:24px 20px 60px;}
+
+/* HEADER */
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+.header-left h1{font-size:28px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#f5a623,#f7c76d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-left .date{font-family:'Roboto Mono',monospace;font-size:12px;color:var(--text2);margin-top:4px;}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.streak-pill{display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#3d1f00,#5a2e00);border:1px solid var(--mango);border-radius:20px;padding:6px 14px;font-size:14px;font-weight:600;color:var(--mango);}
+.mango-pill{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:14px;font-weight:600;color:var(--text);}
+
+/* STAT CARDS */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.stat::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,var(--mango-glow),transparent 70%);pointer-events:none;}
+.stat:hover{border-color:var(--mango);}
+.stat .s-label{font-size:11px;color:var(--text2);font-family:'Roboto Mono',monospace;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;}
+.stat .s-val{font-size:24px;font-weight:700;color:var(--text);}
+.stat .s-sub{font-size:12px;color:var(--text3);margin-top:3px;}
+.stat.highlight .s-val{color:var(--mango);}
+
+/* HEATMAP */
+.heatmap-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;}
+.heatmap-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.heatmap-header h3{font-size:13px;font-weight:600;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+.heatmap-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);}
+.leg{width:11px;height:11px;border-radius:2px;}
+
+/* Fade Wrapper applying gradient to months and grid */
+.heatmap-fade-wrap {
+  width: 100%;
+  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 100%);
+  mask-image: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 100%);
+}
+
+.heatmap-months{
+  display: grid; 
+  grid-template-columns: repeat(52, 1fr); 
+  gap: 3px; 
+  width: 100%; 
+  margin-bottom: 6px;
+}
+.heatmap-months span{
+  font-size: 11px;
+  color: var(--text3);
+  font-family: 'Roboto Mono', monospace;
+  white-space: nowrap;
+  grid-row: 1;
+}
+
+.heatmap-grid{display:grid;grid-template-rows:repeat(7,1fr);grid-template-columns:repeat(52,1fr);gap:3px;width:100%;}
+.hm-cell{aspect-ratio:1;width:100%;border-radius:2px;cursor:pointer;transition:transform 0.1s;}
+.hm-cell:hover{transform:scale(1.4);z-index:10;position:relative;}
+.hm-0{background:#1e1e2e;}
+.hm-1{background:#1a3a1a;}
+.hm-2{background:#1e6b2e;}
+.hm-3{background:#27a344;}
+.hm-4{background:#2ecc71;}
+
+/* TABS */
+.tabs{display:flex;gap:2px;margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:4px;}
+.tab{flex:1;font-size:13px;font-weight:600;padding:10px 12px;border:none;border-radius:var(--r2);cursor:pointer;background:transparent;color:var(--text2);transition:all 0.2s;}
+.tab.active{background:var(--mango);color:#0a0a0f;}
+
+/* PANELS */
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* SECTION */
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;}
+.sec-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sec-title{font-size:13px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+
+/* TODO & IDEAS */
+.todo-list{display:flex;flex-direction:column;gap:6px;}
+.todo-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);transition:all 0.2s;cursor:pointer;}
+.todo-item:hover{border-color:var(--mango);background:var(--bg4);}
+.todo-item.done{opacity:0.45;}
+.todo-item.done .todo-text{text-decoration:line-through;color:var(--text2);}
+.todo-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;background:transparent;}
+.todo-check.checked{background:var(--mango);border-color:var(--mango);}
+.todo-check svg{width:11px;height:11px;stroke:#0a0a0f;stroke-width:2.5;fill:none;display:none;}
+.todo-check.checked svg{display:block;}
+.todo-text{flex:1;font-size:14px;color:var(--text);font-weight:500;}
+.todo-tags{display:flex;gap:6px;align-items:center;}
+.tag{font-size:11px;padding:3px 8px;border-radius:10px;font-family:'Roboto Mono',monospace;font-weight:500;}
+.tag-mango{background:var(--mango-dim);color:var(--mango);}
+.tag-category{background:var(--bg4);color:var(--text2);border:1px solid var(--border);}
+.tag-pri-high{background:#2a0a0a;color:#e74c3c;}
+.tag-pri-med{background:#2a2200;color:#f1c40f;}
+.tag-pri-low{background:#0a1a2a;color:#3498db;}
+.todo-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 2px;line-height:1;opacity:0;}
+.todo-item:hover .todo-del{opacity:1;}
+
+/* ADD TASK/IDEA */
+.add-area{margin-top:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:14px;}
+.add-row1{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+.add-row1 input{flex:1;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;}
+.add-row1 input::placeholder{color:var(--text3);}
+.add-row1 input:focus{outline:none;border-color:var(--mango);}
+.add-row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.add-row2 select, .add-row2 input{background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;}
+.add-row2 input{font-family: 'Roboto Mono', monospace;}
+.add-row2 select:focus, .add-row2 input:focus{outline:none;border-color:var(--mango);}
+.btn{padding:10px 18px;border-radius:6px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;transition:all 0.2s;}
+.btn-mango{background:var(--mango);color:#0a0a0f;}
+.btn-mango:hover{background:var(--mango2);}
+.btn-ghost{background:var(--bg4);color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--mango);color:var(--mango);}
+
+/* ACTIVITY */
+.hbar-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.hbar-label{font-size:12px;font-family:'Roboto Mono',monospace;color:var(--text2);width:36px;text-align:right;}
+.hbar-track{flex:1;height:10px;background:var(--bg4);border-radius:5px;overflow:hidden;}
+.hbar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--mango2),var(--mango));transition:width 0.6s cubic-bezier(.4,0,.2,1);}
+.hbar-val{font-size:12px;font-family:'Roboto Mono',monospace;color:var(--text3);width:20px;}
+
+/* DAY ACTIVITY */
+.date-search{display:flex;gap:8px;margin-bottom:14px;align-items:center;}
+.date-search input[type=date]{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'Roboto Mono',monospace;font-size:13px;}
+.date-search input[type=date]:focus{outline:none;border-color:var(--mango);}
+.day-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px;}
+.day-stat{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:12px;}
+.day-stat .ds-l{font-size:11px;color:var(--text3);font-family:'Roboto Mono',monospace;margin-bottom:4px;font-weight:600;}
+.day-stat .ds-v{font-size:20px;font-weight:700;color:var(--text);}
+.task-log{display:flex;flex-direction:column;gap:6px;}
+.tlog-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:13px;}
+.tlog-item .tl-check{color:var(--green);font-size:16px;}
+.tlog-item .tl-text{flex:1;color:var(--text);font-weight:500;}
+.tlog-item .tl-time{color:var(--text3);font-family:'Roboto Mono',monospace;font-size:11px;}
+.tlog-item .tl-mg{background:var(--mango-dim);color:var(--mango);padding:3px 8px;border-radius:8px;font-size:11px;font-family:'Roboto Mono',monospace;font-weight:600;}
+
+/* SETTINGS */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+.setting-row:last-child{border-bottom:none;}
+.setting-row .s-label{font-size:14px;color:var(--text);font-weight:500;}
+.setting-row .s-desc{font-size:12px;color:var(--text3);margin-top:4px;}
+.setting-row input[type=number]{width:70px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-family:'Roboto Mono',monospace;font-size:13px;text-align:center;}
+.setting-row input[type=number]:focus{outline:none;border-color:var(--mango);}
+.toggle{width:42px;height:24px;background:var(--bg4);border-radius:12px;position:relative;cursor:pointer;border:1px solid var(--border);transition:all 0.2s;}
+.toggle.on{background:var(--mango);border-color:var(--mango);}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:white;top:2px;left:2px;transition:left 0.2s;}
+.toggle.on::after{left:20px;}
+
+/* CUSTOM TYPES */
+.ctype-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.ctype-row input{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;}
+.ctype-row input[type="number"]{font-family: 'Roboto Mono', monospace;}
+.ctype-row input:focus{outline:none;border-color:var(--mango);}
+.ctype-row .del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;}
+.ctype-row .del-btn:hover{color:var(--red);}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--mango);color:#0a0a0f;padding:12px 24px;border-radius:24px;font-size:14px;font-weight:600;transform:translateY(60px);opacity:0;transition:all 0.3s;z-index:999;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* EMPTY */
+.empty{padding:24px;text-align:center;color:var(--text3);font-size:14px;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ANIMATIONS */
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn 0.3s ease forwards;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toast" id="toast"></div>
+
+  <div class="header">
+    <div class="header-left">
+      <h1>📚 Study Board</h1>
+      <div class="date" id="date-display"></div>
+    </div>
+    <div class="header-right">
+      <div class="streak-pill" id="streak-pill">🔥 <span id="streak-num">0</span> day streak</div>
+      <div class="mango-pill">🥭 <span id="total-mango">0</span> mangoes</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat highlight">
+      <div class="s-label">TODAY'S MANGOES</div>
+      <div class="s-val" id="s-today-mg">0 🥭</div>
+      <div class="s-sub" id="s-streak-status">keep going!</div>
+    </div>
+    <div class="stat">
+      <div class="s-label">TASKS</div>
+      <div class="s-val" id="s-tasks">0/0</div>
+      <div class="s-sub">completed today</div>
+    </div>
+    <div class="stat">
+      <div class="s-label">BEST STREAK</div>
+      <div class="s-val" id="s-best">0 🔥</div>
+      <div class="s-sub">days</div>
+    </div>
+  </div>
+
+  <div class="heatmap-wrap" id="heatmap-section">
+    <div class="heatmap-header">
+      <h3>Activity — Last 1 Year</h3>
+      <div class="heatmap-legend">
+        <span style="margin-right:4px;">Less</span>
+        <div class="leg" style="background:#1e1e2e;"></div>
+        <div class="leg" style="background:#1a3a1a;"></div>
+        <div class="leg" style="background:#1e6b2e;"></div>
+        <div class="leg" style="background:#27a344;"></div>
+        <div class="leg" style="background:#2ecc71;"></div>
+        <span style="margin-left:4px;">More</span>
+      </div>
+    </div>
+    <div class="heatmap-fade-wrap">
+      <div class="heatmap-months" id="hm-months"></div>
+      <div class="heatmap-grid" id="hm-grid"></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('todo')">To-Do</button>
+    <button class="tab" onclick="switchTab('ideas')">Ideas</button>
+    <button class="tab" onclick="switchTab('activity')">Activity</button>
+    <button class="tab" onclick="switchTab('settings')">Settings</button>
+  </div>
+
+  <div class="panel active" id="panel-todo">
+    <div class="section">
+      <div class="sec-row">
+        <div class="sec-title">Today's Tasks</div>
+      </div>
+      <div class="todo-list" id="todo-list"></div>
+      <div class="add-area">
+        <div class="add-row1">
+          <input type="text" id="new-task" placeholder="Add a task..." onkeydown="if(event.key==='Enter')addTask()"/>
+        </div>
+        <div class="add-row2">
+          <select id="task-category">
+            <option value="">Select Category...</option>
+          </select>
+          <input type="number" id="task-custom-mango" placeholder="Custom 🥭 (Optional)" min="1" style="width:170px;" />
+          <select id="task-pri">
+            <option value="med">Medium priority</option>
+            <option value="high">High priority</option>
+            <option value="low">Low priority</option>
+          </select>
+          <button class="btn btn-mango" onclick="addTask()">+ Add Task</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-ideas">
+    <div class="section">
+      <div class="sec-row">
+        <div class="sec-title">Future Ideas & Notes</div>
+      </div>
+      <div class="todo-list" id="ideas-list"></div>
+      <div class="add-area">
+        <div class="add-row1" style="margin-bottom:0;">
+          <input type="text" id="new-idea" placeholder="Note down an idea or reminder for later..." onkeydown="if(event.key==='Enter')addIdea()"/>
+          <button class="btn btn-mango" onclick="addIdea()">+ Add Note</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-activity">
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Day Lookup</div></div>
+      <div class="date-search">
+        <input type="date" id="act-date"/>
+        <button class="btn btn-ghost" onclick="loadDay()">View</button>
+        <button class="btn btn-ghost" onclick="setToday()">Today</button>
+      </div>
+      <div id="day-content"></div>
+    </div>
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Last 7 Days</div></div>
+      <div id="hbars"></div>
+    </div>
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">All-Time Stats</div></div>
+      <div class="stats" style="margin-bottom:0;">
+        <div class="stat"><div class="s-label">TOTAL MANGOES</div><div class="s-val" id="at-mg">0</div></div>
+        <div class="stat"><div class="s-label">ACTIVE DAYS</div><div class="s-val" id="at-days">0</div></div>
+        <div class="stat"><div class="s-label">TASKS DONE</div><div class="s-val" id="at-tasks">0</div></div>
+        <div class="stat"><div class="s-label">BEST STREAK</div><div class="s-val" id="at-streak">0</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-settings">
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Data Backup & Sync (Manual)</div></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="exportData()">Export Data</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">Import Data</button>
+        <input type="file" id="import-file" style="display:none" onchange="importData(event)" accept=".json">
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:10px;line-height:1.4;">
+        Since this app runs locally in your browser, your data isn't automatically shared between your computer and phone. You can use these buttons to manually transfer your data!
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Streak Settings</div></div>
+      <div class="setting-row">
+        <div><div class="s-label">Daily mango target</div><div class="s-desc">Mangoes needed per day to keep streak alive</div></div>
+        <input type="number" id="set-thresh" min="1" max="100" value="10" onchange="updateStreakThresh(this.value)"/>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Display</div></div>
+      <div class="setting-row">
+        <div><div class="s-label">Show heatmap</div><div class="s-desc">Activity grid on main page</div></div>
+        <div class="toggle on" id="tog-heatmap" onclick="toggleSetting('showHeatmap','tog-heatmap','heatmap-section')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="s-label">Show streak badge</div></div>
+        <div class="toggle on" id="tog-streak" onclick="toggleSetting('showStreak','tog-streak','streak-pill')"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Custom Categories</div></div>
+      <div id="ctypes"></div>
+      <button class="btn btn-ghost" style="margin-top:10px;" onclick="addCType()">+ Add Category</button>
+    </div>
+    <div class="section">
+      <div class="sec-row"><div class="sec-title">Danger Zone</div></div>
+      <button class="btn" style="background:#2a0a0a;color:var(--red);border:1px solid #5a1a1a;" onclick="resetAll()">Reset Everything</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+let S = {
+  todos: [], ideas: [], mangoes: 0, streak: 0, bestStreak: 0,
+  streakThresh: 10, history: {}, taskLog: {}, lastDate: null,
+  customTypes: [{name: 'Studying', mango: 10}, {name: 'Reading', mango: 5}], showHeatmap: true,
+  showStreak: true, totalTasksDone: 0,
+};
+
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function fmtDate(s){return new Date(s+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
+
+function load(){
+  try{
+    const d=localStorage.getItem('studyboard_v5');
+    if(d) S=Object.assign(S, JSON.parse(d));
+    if(!S.ideas) S.ideas = [];
+  }catch(e){}
+  checkRollover();
+}
+function save(){try{localStorage.setItem('studyboard_v5',JSON.stringify(S));}catch(e){}}
+
+function checkRollover(){
+  const today=todayStr();
+  if(!S.lastDate)S.lastDate=today;
+  if(S.lastDate!==today){
+    const prev=S.history[S.lastDate]||0;
+    if(prev>=S.streakThresh){S.streak++;if(S.streak>S.bestStreak)S.bestStreak=S.streak;}
+    else if(prev===0)S.streak=0;
+    S.todos=S.todos.filter(t=>!t.done);
+    S.lastDate=today;save();
+  }
+}
+
+// ─── TASKS ───────────────────────────────────────────────
+function addTask(){
+  const inp=document.getElementById('new-task');
+  const txt=inp.value.trim();if(!txt)return;
+  
+  const catName=document.getElementById('task-category').value;
+  const customMango=document.getElementById('task-custom-mango').value;
+  
+  let mg = 1;
+  if (customMango && !isNaN(customMango)) {
+    mg = parseInt(customMango);
+  } else if (catName) {
+    const cat = S.customTypes.find(c => c.name === catName);
+    if (cat) mg = cat.mango;
+  }
+
+  const pri=document.getElementById('task-pri').value;
+  S.todos.push({id:Date.now(),text:txt,mango:mg,category:catName,pri,done:false});
+  inp.value='';
+  document.getElementById('task-custom-mango').value='';
+  save();renderTodos();renderStats();
+}
+
+function toggleTask(id){
+  const t=S.todos.find(x=>x.id===id);if(!t)return;
+  const today=todayStr();
+  if(!t.done){
+    t.done=true;
+    S.mangoes+=t.mango;
+    S.history[today]=(S.history[today]||0)+t.mango;
+    if(!S.taskLog[today])S.taskLog[today]=[];
+    S.taskLog[today].push({text:t.text,mango:t.mango,category:t.category,time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})});
+    S.totalTasksDone++;
+    showToast('+'+t.mango+' 🥭');
+    checkStreak();
+  }else{
+    t.done=false;
+    S.mangoes=Math.max(0,S.mangoes-t.mango);
+    S.history[today]=Math.max(0,(S.history[today]||0)-t.mango);
+    S.totalTasksDone=Math.max(0,S.totalTasksDone-1);
+    if(S.taskLog[today]){const i=S.taskLog[today].findIndex(x=>x.text===t.text);if(i>-1)S.taskLog[today].splice(i,1);}
+    checkStreak();
+  }
+  save();renderTodos();renderStats();buildHeatmap();
+}
+
+function deleteTask(id){S.todos=S.todos.filter(x=>x.id!==id);save();renderTodos();renderStats();}
+
+function checkStreak(){
+  const mg=S.history[todayStr()]||0;
+  if(mg>=S.streakThresh&&S.streak===0)S.streak=1;
+  if(S.streak>S.bestStreak)S.bestStreak=S.streak;
+}
+
+function renderTodos(){
+  const list=document.getElementById('todo-list');
+  if(!S.todos.length){list.innerHTML='<div class="empty">No tasks yet — add one below 🥭</div>';return;}
+  list.innerHTML='';
+  S.todos.forEach(t=>{
+    const el=document.createElement('div');
+    el.className='todo-item fade-in'+(t.done?' done':'');
+    const priClass=t.pri==='high'?'tag-pri-high':t.pri==='low'?'tag-pri-low':'tag-pri-med';
+    el.innerHTML=`
+      <div class="todo-check${t.done?' checked':''}" onclick="toggleTask(${t.id})">
+        <svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>
+      </div>
+      <span class="todo-text">${t.text}</span>
+      <div class="todo-tags">
+        ${t.category?`<span class="tag tag-category">${t.category}</span>`:''}
+        <span class="tag ${priClass}">${t.pri}</span>
+        <span class="tag tag-mango">${t.mango} 🥭</span>
+      </div>
+      <button class="todo-del" onclick="deleteTask(${t.id})" title="Delete">×</button>`;
+    list.appendChild(el);
+  });
+}
+
+// ─── IDEAS ───────────────────────────────────────────────
+function addIdea(){
+  const inp=document.getElementById('new-idea');
+  const txt=inp.value.trim();if(!txt)return;
+  S.ideas.push({id:Date.now(),text:txt,done:false});
+  inp.value='';
+  save();renderIdeas();
+}
+
+function toggleIdea(id){
+  const i=S.ideas.find(x=>x.id===id);if(!i)return;
+  i.done=!i.done;
+  save();renderIdeas();
+}
+
+function deleteIdea(id){S.ideas=S.ideas.filter(x=>x.id!==id);save();renderIdeas();}
+
+function renderIdeas(){
+  const list=document.getElementById('ideas-list');
+  if(!S.ideas.length){list.innerHTML='<div class="empty">No ideas yet. Brain dump here! 💡</div>';return;}
+  list.innerHTML='';
+  S.ideas.forEach(i=>{
+    const el=document.createElement('div');
+    el.className='todo-item fade-in'+(i.done?' done':'');
+    el.innerHTML=`
+      <div class="todo-check${i.done?' checked':''}" onclick="toggleIdea(${i.id})">
+        <svg viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>
+      </div>
+      <span class="todo-text">${i.text}</span>
+      <button class="todo-del" onclick="deleteIdea(${i.id})" title="Delete">×</button>`;
+    list.appendChild(el);
+  });
+}
+
+// ─── STATS ───────────────────────────────────────────────
+function renderStats(){
+  const today=todayStr();
+  const todayMg=S.history[today]||0;
+  const done=S.todos.filter(t=>t.done).length;
+  const total=S.todos.length;
+  
+  document.getElementById('date-display').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('streak-num').textContent=S.streak;
+  document.getElementById('total-mango').textContent=S.mangoes;
+  document.getElementById('s-today-mg').textContent=todayMg+' 🥭';
+  document.getElementById('s-streak-status').textContent=todayMg>=S.streakThresh?'✅ streak safe!':((S.streakThresh-todayMg)+' more to streak');
+  document.getElementById('s-tasks').textContent=done+'/'+total;
+  document.getElementById('s-best').textContent=S.bestStreak+' 🔥';
+  
+  // activity
+  document.getElementById('at-mg').textContent=S.mangoes;
+  document.getElementById('at-days').textContent=Object.keys(S.history).filter(k=>S.history[k]>0).length;
+  document.getElementById('at-tasks').textContent=S.totalTasksDone;
+  document.getElementById('at-streak').textContent=S.bestStreak;
+  
+  // settings
+  document.getElementById('set-thresh').value=S.streakThresh;
+}
+
+// ─── HEATMAP ─────────────────────────────────────────────
+function buildHeatmap(){
+  const grid=document.getElementById('hm-grid');
+  const months=document.getElementById('hm-months');
+  grid.innerHTML='';months.innerHTML='';
+  
+  const days=364; // Exactly 52 weeks rolling
+  const today=new Date();
+  const start=new Date(today);
+  start.setDate(start.getDate() - days + 1);
+  
+  const cells=[];
+  for(let i=0;i<days;i++){
+    const d=new Date(start);
+    d.setDate(d.getDate()+i);
+    const key=d.toISOString().slice(0,10);
+    const mg=S.history[key]||0;
+    let cls='hm-0';
+    if(mg>0&&mg<S.streakThresh*0.25)cls='hm-1';
+    else if(mg>=S.streakThresh*0.25&&mg<S.streakThresh*0.5)cls='hm-2';
+    else if(mg>=S.streakThresh*0.5&&mg<S.streakThresh)cls='hm-3';
+    else if(mg>=S.streakThresh)cls='hm-4';
+    cells.push({d,key,mg,cls});
+  }
+  
+  cells.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='hm-cell '+c.cls;
+    el.title=c.key+': '+c.mg+' 🥭';
+    el.onclick=()=>{switchTab('activity');document.getElementById('act-date').value=c.key;loadDay();};
+    grid.appendChild(el);
+  });
+  
+  // month labels aligned via CSS grid columns
+  let lastMonth = -1;
+  for(let w=0; w<52; w++){
+    const d = new Date(start);
+    d.setDate(d.getDate() + w * 7);
+    const m = d.getMonth();
+    
+    if(m !== lastMonth){
+        const s = document.createElement('span');
+        s.textContent = d.toLocaleString('default',{month:'short'});
+        s.style.gridColumnStart = w + 1; // 1-indexed grid column
+        
+        if (w > 49) {
+           s.style.transform = 'translateX(-50%)';
+        }
+        months.appendChild(s);
+        lastMonth = m;
+    }
+  }
+}
+
+// ─── ACTIVITY ────────────────────────────────────────────
+function setToday(){document.getElementById('act-date').value=todayStr();loadDay();}
+function loadDay(){
+  const date=document.getElementById('act-date').value||todayStr();
+  const mg=S.history[date]||0;
+  const logs=S.taskLog[date]||[];
+  const isToday=date===todayStr();
+  let html=`<div class="day-stats">
+    <div class="day-stat"><div class="ds-l">DATE</div><div class="ds-v" style="font-size:14px;margin-top:4px;">${fmtDate(date)}</div></div>
+    <div class="day-stat"><div class="ds-l">MANGOES</div><div class="ds-v">${mg} 🥭</div></div>
+    <div class="day-stat"><div class="ds-l">TASKS</div><div class="ds-v">${logs.length}</div></div>
+    <div class="day-stat"><div class="ds-l">STREAK</div><div class="ds-v">${mg>=S.streakThresh?'✅':'❌'}</div></div>
+  </div>`;
+  if(logs.length){
+    html+=`<div class="task-log">`;
+    logs.forEach(l=>{html+=`<div class="tlog-item"><span class="tl-check">✓</span><span class="tl-text">${l.text}${l.category?` <span style="color:var(--text3);font-size:11px;">[${l.category}]</span>`:''}</span>${l.time?`<span class="tl-time">${l.time}</span>`:''}<span class="tl-mg">${l.mango} 🥭</span></div>`;});
+    html+=`</div>`;
+  }else{
+    html+=`<div class="empty">${isToday?'No tasks done yet today. Go earn those mangoes! 🥭':'No activity recorded.'}</div>`;
+  }
+  document.getElementById('day-content').innerHTML=html;
+}
+
+function buildHbars(){
+  const cont=document.getElementById('hbars');cont.innerHTML='';
+  const today=new Date();
+  const vals=Array.from({length:7},(_,i)=>{
+    const d=new Date(today);d.setDate(d.getDate()-(6-i));
+    return{key:d.toISOString().slice(0,10),label:i===6?'Today':d.toLocaleDateString('default',{weekday:'short'})};
+  });
+  const maxMg=Math.max(...vals.map(v=>S.history[v.key]||0),S.streakThresh,1);
+  vals.forEach(v=>{
+    const mg=S.history[v.key]||0;
+    const pct=Math.round((mg/maxMg)*100);
+    cont.innerHTML+=`<div class="hbar-row"><div class="hbar-label">${v.label}</div><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div><div class="hbar-val">${mg}</div></div>`;
+  });
+}
+
+// ─── SETTINGS & SYNC ─────────────────────────────────────
+function updateStreakThresh(val){
+  const newVal = parseInt(val);
+  if (isNaN(newVal) || newVal === S.streakThresh) return;
+  
+  if(confirm("Warning: Changing the daily mango target will reset your current streak to 0. Do you want to proceed?")){
+    S.streakThresh = newVal;
+    S.streak = 0;
+    save();
+    renderStats();
+    buildHeatmap();
+  }else{
+    document.getElementById('set-thresh').value = S.streakThresh;
+  }
+}
+
+function toggleSetting(key,togId,elId){
+  S[key]=!S[key];save();
+  document.getElementById(togId).classList.toggle('on',S[key]);
+  const el=document.getElementById(elId);if(el)el.style.display=S[key]?'':'none';
+}
+
+function renderSettings(){
+  document.getElementById('set-thresh').value=S.streakThresh;
+  document.getElementById('tog-heatmap').classList.toggle('on',S.showHeatmap!==false);
+  document.getElementById('tog-streak').classList.toggle('on',S.showStreak!==false);
+  document.getElementById('heatmap-section').style.display=S.showHeatmap===false?'none':'';
+  document.getElementById('streak-pill').style.display=S.showStreak===false?'none':'';
+  renderCTypes();
+}
+
+function renderCategoryDropdown(){
+  const sel = document.getElementById('task-category');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Select Category...</option>';
+  S.customTypes.forEach(t => {
+    sel.innerHTML += `<option value="${t.name}">${t.name} (${t.mango} 🥭)</option>`;
+  });
+}
+
+function renderCTypes(){
+  const cont=document.getElementById('ctypes');cont.innerHTML='';
+  S.customTypes.forEach((t,i)=>{
+    cont.innerHTML+=`<div class="ctype-row">
+      <input value="${t.name}" onchange="S.customTypes[${i}].name=this.value;save();renderCategoryDropdown();" style="flex:1;" placeholder="Category name"/>
+      <input type="number" value="${t.mango}" min="1" max="99" onchange="S.customTypes[${i}].mango=+this.value;save();renderCategoryDropdown();" style="width:70px;" placeholder="🥭"/>
+      <button class="del-btn" onclick="S.customTypes.splice(${i},1);save();renderCTypes();">×</button>
+    </div>`;
+  });
+  renderCategoryDropdown();
+}
+
+function addCType(){S.customTypes.push({name:'New Category',mango:5});save();renderCTypes();}
+
+function resetAll(){
+  if(!confirm('Reset ALL data? This cannot be undone.'))return;
+  S={todos:[],ideas:[],mangoes:0,streak:0,bestStreak:0,streakThresh:10,history:{},taskLog:{},lastDate:todayStr(),customTypes:[{name: 'Studying', mango: 10}, {name: 'Reading', mango: 5}],showHeatmap:true,showStreak:true,totalTasksDone:0};
+  save();render();showToast('Board reset.');
+}
+
+// ─── EXPORT / IMPORT SYNC ────────────────────────────────
+function exportData() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(S));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", "studyboard_backup.json");
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if(imported && typeof imported === 'object') {
+        S = Object.assign(S, imported);
+        save();
+        render();
+        showToast('Data imported successfully!');
+      }
+    } catch(err) {
+      showToast('Error importing data.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // Reset input
+}
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const names=['todo','ideas','activity','settings'];
+    t.classList.toggle('active',names[i]===name);
+  });
+  document.querySelectorAll('.panel').forEach(p=>{p.classList.toggle('active',p.id==='panel-'+name);});
+  if(name==='activity'){buildHbars();loadDay();}
+  if(name==='settings')renderSettings();
+}
+
+// ─── TOAST ───────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+// ─── RENDER ALL ──────────────────────────────────────────
+function render(){
+  renderStats();renderTodos();renderIdeas();buildHeatmap();buildHbars();renderSettings();
+  document.getElementById('act-date').value=todayStr();
+  loadDay();
+}
+
+load();render();
+</script>
+</body>
+</html>
